@@ -7,22 +7,28 @@ import {
   updatePassword,
   forgotPassword,
   resetPassword,
-  logout
+  logout,
+  getAllUsers,
+  deleteAccount
 } from '../controllers/userController.js';
-import { protect } from '../middleware/auth.js';
+import { protect, authorize } from '../middleware/auth.js';
+import {
+  validateRegister,
+  validateLogin,
+  validateUpdateProfile,
+  validateUpdatePassword
+} from '../middleware/validation.js';
 
 /**
  * User Routes
- * Handles all user-related endpoints
- * TODO: Add rate limiting for authentication routes
- * TODO: Add input validation middleware
+ * Handles all user-related endpoints with proper validation and authentication
  */
 
 const router = express.Router();
 
 // Public routes
-router.post('/register', registerUser);
-router.post('/login', loginUser);
+router.post('/register', validateRegister, registerUser);
+router.post('/login', validateLogin, loginUser);
 router.post('/forgotpassword', forgotPassword);
 router.put('/resetpassword/:resettoken', resetPassword);
 
@@ -30,20 +36,12 @@ router.put('/resetpassword/:resettoken', resetPassword);
 router.use(protect); // All routes after this middleware are protected
 
 router.get('/me', getMe);
-router.put('/profile', updateProfile);
-router.put('/updatepassword', updatePassword);
+router.put('/profile', validateUpdateProfile, updateProfile);
+router.put('/updatepassword', validateUpdatePassword, updatePassword);
 router.get('/logout', logout);
+router.delete('/account', deleteAccount);
 
-// TODO: Add additional user routes
-// router.post('/verify-email', verifyEmail);
-// router.post('/resend-verification', resendVerification);
-// router.post('/change-email', changeEmail);
-// router.delete('/account', deleteAccount);
-
-// TODO: Add admin-only routes for user management
-// router.get('/users', authorize('admin'), getAllUsers);
-// router.get('/users/:id', authorize('admin'), getUserById);
-// router.put('/users/:id', authorize('admin'), updateUserById);
-// router.delete('/users/:id', authorize('admin'), deleteUserById);
+// Admin only routes
+router.get('/', authorize('admin'), getAllUsers);
 
 export default router;

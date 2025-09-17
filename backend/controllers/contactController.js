@@ -5,7 +5,6 @@ import { ApiError } from '../middleware/errorHandler.js';
 /**
  * Contact Controller
  * Handles contact form submissions and inquiry management
- * TODO: Implement all contact management functionality
  */
 
 /**
@@ -14,81 +13,109 @@ import { ApiError } from '../middleware/errorHandler.js';
  * @access  Public
  */
 export const submitContactForm = asyncHandler(async (req, res, next) => {
-  // TODO: Implement contact form submission logic
-  // const {
-  //   name,
-  //   email,
-  //   phone,
-  //   company,
-  //   subject,
-  //   message,
-  //   projectType,
-  //   budget,
-  //   timeline
-  // } = req.body;
+  const {
+    name,
+    email,
+    phone,
+    company,
+    subject,
+    message,
+    projectType,
+    budget,
+    timeline
+  } = req.body;
   
-  // Add metadata
-  // const metadata = {
-  //   ipAddress: req.ip,
-  //   userAgent: req.headers['user-agent'],
-  //   referrer: req.headers.referrer
-  // };
+  // Add metadata from request
+  const metadata = {
+    ipAddress: req.ip || req.connection.remoteAddress,
+    userAgent: req.headers['user-agent'],
+    referrer: req.headers.referer || req.headers.referrer,
+    // Extract UTM parameters if present
+    utmSource: req.query.utm_source,
+    utmMedium: req.query.utm_medium,
+    utmCampaign: req.query.utm_campaign
+  };
   
   // Create contact entry
-  // const contact = await Contact.create({
-  //   ...req.body,
-  //   metadata
-  // });
+  const contact = await Contact.create({
+    name,
+    email,
+    phone,
+    company,
+    subject,
+    message,
+    projectType,
+    budget,
+    timeline,
+    metadata
+  });
   
-  // Send notification email to admin
-  // await sendNotificationEmail(contact);
+  // In a real application, you would:
+  // 1. Send notification email to admin
+  // 2. Send acknowledgment email to user
+  // 3. Potentially integrate with CRM or other services
   
-  // Send acknowledgment email to user
-  // await sendAcknowledgmentEmail(contact);
+  console.log('New contact form submission:', {
+    id: contact._id,
+    name: contact.name,
+    email: contact.email,
+    subject: contact.subject
+  });
   
   res.status(201).json({
     success: true,
-    message: 'Contact form submitted successfully - TODO: Implement logic',
+    message: 'Contact form submitted successfully. We will get back to you soon!',
     data: {
-      // id: contact._id,
-      // message: 'Thank you for your message. We will get back to you soon!'
+      id: contact._id,
+      submittedAt: contact.createdAt
     }
   });
 });
 
 /**
- * @desc    Get all contact submissions
+ * @desc    Get all contact submissions with filtering and pagination
  * @route   GET /api/contact
  * @access  Private (Admin only)
  */
 export const getContactSubmissions = asyncHandler(async (req, res, next) => {
-  // TODO: Implement get all contacts logic
-  // const { status, priority, page, limit, sort } = req.query;
+  const { 
+    status, 
+    priority, 
+    projectType,
+    page = 1, 
+    limit = 20, 
+    sort = '-createdAt' 
+  } = req.query;
   
   // Build query
-  // let query = {};
-  // if (status) query.status = status;
-  // if (priority) query.priority = priority;
+  let query = {};
+  if (status) query.status = status;
+  if (priority) query.priority = priority;
+  if (projectType) query.projectType = projectType;
   
+  // Calculate pagination
+  const skip = (parseInt(page) - 1) * parseInt(limit);
+
   // Execute query with pagination
-  // const contacts = await Contact.find(query)
-  //   .sort(sort || '-createdAt')
-  //   .limit(limit * 1 || 20)
-  //   .skip((page - 1) * limit || 0);
-  
-  // const total = await Contact.countDocuments(query);
+  const contacts = await Contact.find(query)
+    .sort(sort)
+    .limit(parseInt(limit))
+    .skip(skip)
+    .select('-metadata -__v'); // Exclude metadata from list view for cleaner response
+
+  const total = await Contact.countDocuments(query);
   
   res.status(200).json({
     success: true,
-    message: 'Get all contact submissions endpoint - TODO: Implement logic',
+    message: 'Contact submissions retrieved successfully',
     data: {
-      // contacts: contacts,
-      // pagination: {
-      //   page: page || 1,
-      //   limit: limit || 20,
-      //   total: total,
-      //   pages: Math.ceil(total / (limit || 20))
-      // }
+      contacts,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / parseInt(limit))
+      }
     }
   });
 });
@@ -99,18 +126,17 @@ export const getContactSubmissions = asyncHandler(async (req, res, next) => {
  * @access  Private (Admin only)
  */
 export const getContactSubmission = asyncHandler(async (req, res, next) => {
-  // TODO: Implement get single contact logic
-  // const contact = await Contact.findById(req.params.id);
+  const contact = await Contact.findById(req.params.id);
   
-  // if (!contact) {
-  //   return next(new ApiError(`Contact not found with id of ${req.params.id}`, 404));
-  // }
+  if (!contact) {
+    return next(new ApiError(`Contact submission not found with id of ${req.params.id}`, 404));
+  }
   
   res.status(200).json({
     success: true,
-    message: 'Get single contact submission endpoint - TODO: Implement logic',
+    message: 'Contact submission retrieved successfully',
     data: {
-      // contact: contact
+      contact
     }
   });
 });
@@ -121,35 +147,34 @@ export const getContactSubmission = asyncHandler(async (req, res, next) => {
  * @access  Private (Admin only)
  */
 export const updateContactStatus = asyncHandler(async (req, res, next) => {
-  // TODO: Implement update contact status logic
-  // const { status, priority, notes } = req.body;
+  const { status, priority, internalNote } = req.body;
   
-  // const contact = await Contact.findById(req.params.id);
+  const contact = await Contact.findById(req.params.id);
   
-  // if (!contact) {
-  //   return next(new ApiError(`Contact not found with id of ${req.params.id}`, 404));
-  // }
+  if (!contact) {
+    return next(new ApiError(`Contact submission not found with id of ${req.params.id}`, 404));
+  }
   
   // Update fields
-  // if (status) contact.status = status;
-  // if (priority) contact.priority = priority;
+  if (status) contact.status = status;
+  if (priority) contact.priority = priority;
   
   // Add internal note if provided
-  // if (notes) {
-  //   contact.notes.internal.push({
-  //     note: notes,
-  //     addedBy: req.user.id,
-  //     addedAt: new Date()
-  //   });
-  // }
+  if (internalNote) {
+    contact.notes.internal.push({
+      note: internalNote,
+      addedBy: req.user?.name || 'Admin',
+      addedAt: new Date()
+    });
+  }
   
-  // await contact.save();
+  await contact.save();
   
   res.status(200).json({
     success: true,
-    message: 'Update contact status endpoint - TODO: Implement logic',
+    message: 'Contact submission updated successfully',
     data: {
-      // contact: contact
+      contact
     }
   });
 });
@@ -160,34 +185,39 @@ export const updateContactStatus = asyncHandler(async (req, res, next) => {
  * @access  Private (Admin only)
  */
 export const addContactNote = asyncHandler(async (req, res, next) => {
-  // TODO: Implement add note logic
-  // const { note, type } = req.body; // type: 'internal' or 'client'
+  const { note, type = 'internal' } = req.body;
   
-  // const contact = await Contact.findById(req.params.id);
+  if (!note || note.trim().length === 0) {
+    return next(new ApiError('Note content is required', 400));
+  }
   
-  // if (!contact) {
-  //   return next(new ApiError(`Contact not found with id of ${req.params.id}`, 404));
-  // }
+  const contact = await Contact.findById(req.params.id);
   
-  // const noteObj = {
-  //   note,
-  //   addedAt: new Date()
-  // };
+  if (!contact) {
+    return next(new ApiError(`Contact submission not found with id of ${req.params.id}`, 404));
+  }
   
-  // if (type === 'internal') {
-  //   noteObj.addedBy = req.user.id;
-  //   contact.notes.internal.push(noteObj);
-  // } else {
-  //   contact.notes.client.push(noteObj);
-  // }
+  const noteObj = {
+    note: note.trim(),
+    addedAt: new Date()
+  };
   
-  // await contact.save();
+  if (type === 'internal') {
+    noteObj.addedBy = req.user?.name || 'Admin';
+    contact.notes.internal.push(noteObj);
+  } else if (type === 'client') {
+    contact.notes.client.push(noteObj);
+  } else {
+    return next(new ApiError('Invalid note type. Must be "internal" or "client"', 400));
+  }
+  
+  await contact.save();
   
   res.status(201).json({
     success: true,
-    message: 'Add contact note endpoint - TODO: Implement logic',
+    message: 'Note added successfully',
     data: {
-      // note: noteObj
+      note: noteObj
     }
   });
 });
@@ -198,18 +228,17 @@ export const addContactNote = asyncHandler(async (req, res, next) => {
  * @access  Private (Admin only)
  */
 export const deleteContactSubmission = asyncHandler(async (req, res, next) => {
-  // TODO: Implement delete contact logic
-  // const contact = await Contact.findById(req.params.id);
+  const contact = await Contact.findById(req.params.id);
   
-  // if (!contact) {
-  //   return next(new ApiError(`Contact not found with id of ${req.params.id}`, 404));
-  // }
+  if (!contact) {
+    return next(new ApiError(`Contact submission not found with id of ${req.params.id}`, 404));
+  }
   
-  // await contact.deleteOne();
+  await contact.deleteOne();
   
   res.status(200).json({
     success: true,
-    message: 'Delete contact submission endpoint - TODO: Implement logic',
+    message: 'Contact submission deleted successfully',
     data: {}
   });
 });
@@ -220,28 +249,71 @@ export const deleteContactSubmission = asyncHandler(async (req, res, next) => {
  * @access  Private (Admin only)
  */
 export const getContactStats = asyncHandler(async (req, res, next) => {
-  // TODO: Implement contact statistics logic
-  // const stats = await Contact.aggregate([
-  //   {
-  //     $group: {
-  //       _id: '$status',
-  //       count: { $sum: 1 }
-  //     }
-  //   }
-  // ]);
+  // Get status breakdown
+  const statusStats = await Contact.aggregate([
+    {
+      $group: {
+        _id: '$status',
+        count: { $sum: 1 }
+      }
+    }
+  ]);
+
+  // Get priority breakdown
+  const priorityStats = await Contact.aggregate([
+    {
+      $group: {
+        _id: '$priority',
+        count: { $sum: 1 }
+      }
+    }
+  ]);
+
+  // Get project type breakdown
+  const projectTypeStats = await Contact.aggregate([
+    {
+      $group: {
+        _id: '$projectType',
+        count: { $sum: 1 }
+      }
+    }
+  ]);
+
+  // Get budget breakdown
+  const budgetStats = await Contact.aggregate([
+    {
+      $group: {
+        _id: '$budget',
+        count: { $sum: 1 }
+      }
+    }
+  ]);
   
-  // const totalContacts = await Contact.countDocuments();
-  // const thisMonth = await Contact.countDocuments({
-  //   createdAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
-  // });
+  const totalContacts = await Contact.countDocuments();
+  
+  // Contacts from last 30 days
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const recentContacts = await Contact.countDocuments({
+    createdAt: { $gte: thirtyDaysAgo }
+  });
+
+  // Contacts from this month
+  const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+  const thisMonthContacts = await Contact.countDocuments({
+    createdAt: { $gte: startOfMonth }
+  });
   
   res.status(200).json({
     success: true,
-    message: 'Get contact statistics endpoint - TODO: Implement logic',
+    message: 'Contact statistics retrieved successfully',
     data: {
-      // stats: stats,
-      // totalContacts: totalContacts,
-      // thisMonth: thisMonth
+      totalContacts,
+      recentContacts,
+      thisMonthContacts,
+      statusStats,
+      priorityStats,
+      projectTypeStats,
+      budgetStats
     }
   });
 });
@@ -252,26 +324,54 @@ export const getContactStats = asyncHandler(async (req, res, next) => {
  * @access  Private (Admin only)
  */
 export const scheduleFollowUp = asyncHandler(async (req, res, next) => {
-  // TODO: Implement schedule follow-up logic
-  // const { scheduledDate } = req.body;
+  const { scheduledDate } = req.body;
   
-  // const contact = await Contact.findById(req.params.id);
+  if (!scheduledDate) {
+    return next(new ApiError('Scheduled date is required', 400));
+  }
   
-  // if (!contact) {
-  //   return next(new ApiError(`Contact not found with id of ${req.params.id}`, 404));
-  // }
+  const contact = await Contact.findById(req.params.id);
   
-  // contact.followUp.scheduled = new Date(scheduledDate);
-  // contact.followUp.completed = false;
-  // await contact.save();
+  if (!contact) {
+    return next(new ApiError(`Contact submission not found with id of ${req.params.id}`, 404));
+  }
   
-  // TODO: Schedule reminder/notification
+  contact.followUp.scheduled = new Date(scheduledDate);
+  contact.followUp.completed = false;
+  await contact.save();
+  
+  // In a real application, you would schedule a reminder/notification here
   
   res.status(200).json({
     success: true,
-    message: 'Schedule follow-up endpoint - TODO: Implement logic',
+    message: 'Follow-up scheduled successfully',
     data: {
-      // followUp: contact.followUp
+      followUp: contact.followUp
+    }
+  });
+});
+
+/**
+ * @desc    Mark follow-up as completed
+ * @route   PUT /api/contact/:id/followup/complete
+ * @access  Private (Admin only)
+ */
+export const completeFollowUp = asyncHandler(async (req, res, next) => {
+  const contact = await Contact.findById(req.params.id);
+  
+  if (!contact) {
+    return next(new ApiError(`Contact submission not found with id of ${req.params.id}`, 404));
+  }
+  
+  contact.followUp.completed = true;
+  contact.followUp.completedAt = new Date();
+  await contact.save();
+  
+  res.status(200).json({
+    success: true,
+    message: 'Follow-up marked as completed',
+    data: {
+      followUp: contact.followUp
     }
   });
 });

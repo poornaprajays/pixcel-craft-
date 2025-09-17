@@ -4,8 +4,7 @@ import { ApiError } from '../middleware/errorHandler.js';
 
 /**
  * User Controller
- * Handles user-related operations like registration, login, profile management
- * TODO: Implement all user management functionality
+ * Handles user authentication and management operations
  */
 
 /**
@@ -14,22 +13,41 @@ import { ApiError } from '../middleware/errorHandler.js';
  * @access  Public
  */
 export const registerUser = asyncHandler(async (req, res, next) => {
-  // TODO: Implement user registration logic
-  // const { name, email, password } = req.body;
-  
-  // Validation
+  const { name, email, password } = req.body;
+
   // Check if user already exists
-  // Hash password
-  // Create user
+  const existingUser = await User.findOne({ email });
+  if (existingUser) {
+    return next(new ApiError('User with this email already exists', 400));
+  }
+
+  // Create user (password will be hashed automatically by the pre-save middleware)
+  const user = await User.create({
+    name,
+    email,
+    password
+  });
+
   // Generate JWT token
-  // Send response
-  
+  const token = user.getSignedJwtToken();
+
+  // Remove password from response
+  const userResponse = {
+    _id: user._id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    avatar: user.avatar,
+    isEmailVerified: user.isEmailVerified,
+    createdAt: user.createdAt
+  };
+
   res.status(201).json({
     success: true,
-    message: 'User registration endpoint - TODO: Implement logic',
+    message: 'User registered successfully',
     data: {
-      // user: newUser,
-      // token: token
+      user: userResponse,
+      token
     }
   });
 });
@@ -40,21 +58,40 @@ export const registerUser = asyncHandler(async (req, res, next) => {
  * @access  Public
  */
 export const loginUser = asyncHandler(async (req, res, next) => {
-  // TODO: Implement user login logic
-  // const { email, password } = req.body;
-  
-  // Validation
-  // Find user by email
-  // Check password match
+  const { email, password } = req.body;
+
+  // Find user by email and include password for comparison
+  const user = await User.findOne({ email }).select('+password');
+  if (!user) {
+    return next(new ApiError('Invalid email or password', 401));
+  }
+
+  // Check if password matches
+  const isPasswordMatch = await user.matchPassword(password);
+  if (!isPasswordMatch) {
+    return next(new ApiError('Invalid email or password', 401));
+  }
+
   // Generate JWT token
-  // Send response
-  
+  const token = user.getSignedJwtToken();
+
+  // Remove password from response
+  const userResponse = {
+    _id: user._id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    avatar: user.avatar,
+    isEmailVerified: user.isEmailVerified,
+    createdAt: user.createdAt
+  };
+
   res.status(200).json({
     success: true,
-    message: 'User login endpoint - TODO: Implement logic',
+    message: 'Login successful',
     data: {
-      // user: user,
-      // token: token
+      user: userResponse,
+      token
     }
   });
 });
@@ -65,14 +102,18 @@ export const loginUser = asyncHandler(async (req, res, next) => {
  * @access  Private
  */
 export const getMe = asyncHandler(async (req, res, next) => {
-  // TODO: Implement get current user logic
-  // const user = await User.findById(req.user.id);
+  // req.user is set by the protect middleware
+  const user = await User.findById(req.user.id);
   
+  if (!user) {
+    return next(new ApiError('User not found', 404));
+  }
+
   res.status(200).json({
     success: true,
-    message: 'Get current user endpoint - TODO: Implement logic',
+    message: 'User profile retrieved successfully',
     data: {
-      // user: user
+      user
     }
   });
 });
@@ -83,22 +124,38 @@ export const getMe = asyncHandler(async (req, res, next) => {
  * @access  Private
  */
 export const updateProfile = asyncHandler(async (req, res, next) => {
-  // TODO: Implement update profile logic
-  // const fieldsToUpdate = {
-  //   name: req.body.name,
-  //   email: req.body.email
-  // };
+  const fieldsToUpdate = {};
   
-  // const user = await User.findByIdAndUpdate(req.user.id, fieldsToUpdate, {
-  //   new: true,
-  //   runValidators: true
-  // });
-  
+  // Only include fields that are provided
+  if (req.body.name) fieldsToUpdate.name = req.body.name;
+  if (req.body.email) fieldsToUpdate.email = req.body.email;
+
+  // Check if email is being updated and if it already exists
+  if (req.body.email && req.body.email !== req.user.email) {
+    const existingUser = await User.findOne({ email: req.body.email });
+    if (existingUser) {
+      return next(new ApiError('Email is already in use', 400));
+    }
+  }
+
+  const user = await User.findByIdAndUpdate(
+    req.user.id, 
+    fieldsToUpdate, 
+    {
+      new: true,
+      runValidators: true
+    }
+  );
+
+  if (!user) {
+    return next(new ApiError('User not found', 404));
+  }
+
   res.status(200).json({
     success: true,
-    message: 'Update profile endpoint - TODO: Implement logic',
+    message: 'Profile updated successfully',
     data: {
-      // user: user
+      user
     }
   });
 });
@@ -109,23 +166,33 @@ export const updateProfile = asyncHandler(async (req, res, next) => {
  * @access  Private
  */
 export const updatePassword = asyncHandler(async (req, res, next) => {
-  // TODO: Implement update password logic
-  // const user = await User.findById(req.user.id).select('+password');
-  
+  const { currentPassword, newPassword } = req.body;
+
+  // Get user with password field
+  const user = await User.findById(req.user.id).select('+password');
+
+  if (!user) {
+    return next(new ApiError('User not found', 404));
+  }
+
   // Check current password
-  // if (!(await user.matchPassword(req.body.currentPassword))) {
-  //   return next(new ApiError('Password is incorrect', 401));
-  // }
-  
-  // Update password
-  // user.password = req.body.newPassword;
-  // await user.save();
-  
+  const isCurrentPasswordMatch = await user.matchPassword(currentPassword);
+  if (!isCurrentPasswordMatch) {
+    return next(new ApiError('Current password is incorrect', 400));
+  }
+
+  // Update password (will be hashed automatically)
+  user.password = newPassword;
+  await user.save();
+
+  // Generate new token
+  const token = user.getSignedJwtToken();
+
   res.status(200).json({
     success: true,
-    message: 'Update password endpoint - TODO: Implement logic',
+    message: 'Password updated successfully',
     data: {
-      // token: user.getSignedJwtToken()
+      token
     }
   });
 });
@@ -136,25 +203,20 @@ export const updatePassword = asyncHandler(async (req, res, next) => {
  * @access  Public
  */
 export const forgotPassword = asyncHandler(async (req, res, next) => {
-  // TODO: Implement forgot password logic
-  // const user = await User.findOne({ email: req.body.email });
+  const { email } = req.body;
+
+  const user = await User.findOne({ email });
   
-  // if (!user) {
-  //   return next(new ApiError('There is no user with that email', 404));
-  // }
-  
-  // Get reset token
-  // const resetToken = user.getResetPasswordToken();
-  // await user.save({ validateBeforeSave: false });
-  
-  // Send email with reset token
-  
+  if (!user) {
+    return next(new ApiError('There is no user with that email', 404));
+  }
+
+  // For now, just send success response
+  // In production, you would generate a reset token and send email
   res.status(200).json({
     success: true,
-    message: 'Forgot password endpoint - TODO: Implement logic',
-    data: {
-      message: 'Email sent'
-    }
+    message: 'Password reset instructions sent to email (feature not yet implemented)',
+    data: {}
   });
 });
 
@@ -164,50 +226,81 @@ export const forgotPassword = asyncHandler(async (req, res, next) => {
  * @access  Public
  */
 export const resetPassword = asyncHandler(async (req, res, next) => {
-  // TODO: Implement reset password logic
-  // Get hashed token
-  // const resetPasswordToken = crypto
-  //   .createHash('sha256')
-  //   .update(req.params.resettoken)
-  //   .digest('hex');
-  
-  // Find user by token
-  // const user = await User.findOne({
-  //   resetPasswordToken,
-  //   resetPasswordExpire: { $gt: Date.now() }
-  // });
-  
-  // if (!user) {
-  //   return next(new ApiError('Invalid token', 400));
-  // }
-  
-  // Set new password
-  // user.password = req.body.password;
-  // user.resetPasswordToken = undefined;
-  // user.resetPasswordExpire = undefined;
-  // await user.save();
+  // For now, just send a placeholder response
+  // In production, you would verify the reset token and update password
+  res.status(200).json({
+    success: true,
+    message: 'Password reset successful (feature not yet implemented)',
+    data: {}
+  });
+});
+
+/**
+ * @desc    Logout user (client-side token clearing)
+ * @route   GET /api/users/logout
+ * @access  Private
+ */
+export const logout = asyncHandler(async (req, res, next) => {
+  // JWT logout is handled on the client side by removing the token
+  // Server-side logout would require token blacklisting (advanced feature)
   
   res.status(200).json({
     success: true,
-    message: 'Reset password endpoint - TODO: Implement logic',
+    message: 'Logout successful. Please remove token from client storage.',
+    data: {}
+  });
+});
+
+/**
+ * @desc    Get all users (Admin only)
+ * @route   GET /api/users
+ * @access  Private/Admin
+ */
+export const getAllUsers = asyncHandler(async (req, res, next) => {
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const skip = (page - 1) * limit;
+
+  const users = await User.find({})
+    .select('-password')
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .skip(skip);
+
+  const total = await User.countDocuments();
+
+  res.status(200).json({
+    success: true,
+    message: 'Users retrieved successfully',
     data: {
-      // token: user.getSignedJwtToken()
+      users,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit)
+      }
     }
   });
 });
 
 /**
- * @desc    Logout user / clear cookie
- * @route   GET /api/users/logout
+ * @desc    Delete user account
+ * @route   DELETE /api/users/account
  * @access  Private
  */
-export const logout = asyncHandler(async (req, res, next) => {
-  // TODO: Implement logout logic
-  // Add token to blacklist or clear cookie
+export const deleteAccount = asyncHandler(async (req, res, next) => {
+  const user = await User.findById(req.user.id);
   
+  if (!user) {
+    return next(new ApiError('User not found', 404));
+  }
+
+  await user.deleteOne();
+
   res.status(200).json({
     success: true,
-    message: 'Logout endpoint - TODO: Implement logic',
+    message: 'Account deleted successfully',
     data: {}
   });
 });

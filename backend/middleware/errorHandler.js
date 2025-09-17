@@ -8,10 +8,11 @@
  * Custom error class for API errors
  */
 export class ApiError extends Error {
-  constructor(message, statusCode) {
+  constructor(message, statusCode, data = null) {
     super(message);
     this.statusCode = statusCode;
     this.isOperational = true;
+    this.data = data; // Additional error data (e.g., validation errors)
 
     Error.captureStackTrace(this, this.constructor);
   }
@@ -62,6 +63,7 @@ export const errorHandler = (err, req, res, next) => {
   res.status(error.statusCode || 500).json({
     success: false,
     message: error.message || 'Internal Server Error',
+    ...(error.data && { errors: error.data }),
     ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
   });
 };

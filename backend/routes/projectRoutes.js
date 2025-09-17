@@ -7,50 +7,44 @@ import {
   deleteProject,
   getFeaturedProjects,
   toggleProjectLike,
-  uploadProjectImages
+  uploadProjectImages,
+  getProjectsByCategory,
+  getProjectStats
 } from '../controllers/projectController.js';
-import { protect, authorize } from '../middleware/auth.js';
+import { protect, authorize, optionalAuth } from '../middleware/auth.js';
+import {
+  validateCreateProject,
+  validateUpdateProject,
+  validateMongoId
+} from '../middleware/validation.js';
 
 /**
  * Project Routes
- * Handles all project portfolio endpoints
- * TODO: Add input validation middleware
- * TODO: Add file upload middleware for image handling
- * TODO: Add caching for public routes
+ * Handles all project portfolio endpoints with proper validation and authentication
  */
 
 const router = express.Router();
 
 // Public routes (no authentication required)
-router.get('/', getProjects);
+router.get('/', optionalAuth, getProjects); // Optional auth to show admin-only projects to admins
 router.get('/featured', getFeaturedProjects);
-router.get('/:id', getProject);
-router.post('/:id/like', toggleProjectLike);
+router.get('/category/:category', getProjectsByCategory);
+
+// Public routes with ID validation
+router.get('/:id', optionalAuth, getProject);
+router.post('/:id/like', validateMongoId, toggleProjectLike);
 
 // Protected routes (admin only)
 router.use(protect); // All routes after this middleware require authentication
 router.use(authorize('admin')); // All routes after this middleware require admin role
 
-router.post('/', createProject);
-router.put('/:id', updateProject);
-router.delete('/:id', deleteProject);
-router.post('/:id/images', uploadProjectImages);
+// Admin project management routes
+router.post('/', validateCreateProject, createProject);
+router.put('/:id', validateMongoId, validateUpdateProject, updateProject);
+router.delete('/:id', validateMongoId, deleteProject);
+router.post('/:id/images', validateMongoId, uploadProjectImages);
 
-// TODO: Add additional project routes
-// router.get('/:id/analytics', getProjectAnalytics);
-// router.post('/:id/duplicate', duplicateProject);
-// router.put('/:id/publish', publishProject);
-// router.put('/:id/archive', archiveProject);
-// router.get('/category/:category', getProjectsByCategory);
-// router.get('/technology/:tech', getProjectsByTechnology);
-
-// TODO: Add bulk operations for admin
-// router.post('/bulk/delete', bulkDeleteProjects);
-// router.put('/bulk/status', bulkUpdateStatus);
-// router.post('/bulk/export', exportProjects);
-
-// TODO: Add SEO and sitemap routes
-// router.get('/sitemap.xml', generateProjectSitemap);
-// router.get('/:slug/meta', getProjectMeta);
+// Admin statistics route
+router.get('/admin/stats', getProjectStats);
 
 export default router;

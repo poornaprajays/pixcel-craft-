@@ -1,11 +1,11 @@
 import Project from '../models/Project.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { ApiError } from '../middleware/errorHandler.js';
+import mongoose from 'mongoose';
 
 /**
  * Project Controller
  * Handles project portfolio operations - CRUD operations for showcasing work
- * TODO: Implement all project management functionality
  */
 
 /**
@@ -14,30 +14,45 @@ import { ApiError } from '../middleware/errorHandler.js';
  * @access  Public
  */
 export const getProjects = asyncHandler(async (req, res, next) => {
-  // TODO: Implement get all projects logic
-  // const { category, featured, status, page, limit, sort } = req.query;
+  const { category, featured, status, page = 1, limit = 10, sort = '-createdAt' } = req.query;
   
   // Build query object
-  // let query = {};
+  let query = {};
   
   // Add filters
-  // if (category) query.category = category;
-  // if (featured) query.featured = featured === 'true';
-  // if (status) query.status = status;
+  if (category) query.category = category;
+  if (featured !== undefined) query.featured = featured === 'true';
+  if (status) query.status = status;
   
+  // For public access, only show published projects
+  if (!req.user || req.user.role !== 'admin') {
+    query.status = 'published';
+  }
+
+  // Calculate pagination
+  const skip = (parseInt(page) - 1) * parseInt(limit);
+
   // Execute query with pagination and sorting
-  // const projects = await Project.find(query)
-  //   .sort(sort || '-createdAt')
-  //   .limit(limit * 1 || 10)
-  //   .skip((page - 1) * limit || 0)
-  //   .populate('createdBy', 'name email');
-  
+  const projects = await Project.find(query)
+    .sort(sort)
+    .limit(parseInt(limit))
+    .skip(skip)
+    .select('-__v');
+
+  // Get total count for pagination
+  const total = await Project.countDocuments(query);
+
   res.status(200).json({
     success: true,
-    message: 'Get all projects endpoint - TODO: Implement logic',
+    message: 'Projects retrieved successfully',
     data: {
-      // projects: projects,
-      // pagination: { ... }
+      projects,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / parseInt(limit))
+      }
     }
   });
 });
@@ -48,29 +63,33 @@ export const getProjects = asyncHandler(async (req, res, next) => {
  * @access  Public
  */
 export const getProject = asyncHandler(async (req, res, next) => {
-  // TODO: Implement get single project logic
-  // let project;
+  let project;
   
   // Check if param is ObjectId or slug
-  // if (mongoose.Types.ObjectId.isValid(req.params.id)) {
-  //   project = await Project.findById(req.params.id).populate('createdBy', 'name email');
-  // } else {
-  //   project = await Project.findOne({ 'seo.slug': req.params.id }).populate('createdBy', 'name email');
-  // }
+  if (mongoose.Types.ObjectId.isValid(req.params.id)) {
+    project = await Project.findById(req.params.id).select('-__v');
+  } else {
+    project = await Project.findOne({ 'seo.slug': req.params.id }).select('-__v');
+  }
   
-  // if (!project) {
-  //   return next(new ApiError(`Project not found with id of ${req.params.id}`, 404));
-  // }
+  if (!project) {
+    return next(new ApiError(`Project not found with id of ${req.params.id}`, 404));
+  }
+
+  // For public access, only show published projects
+  if (project.status !== 'published' && (!req.user || req.user.role !== 'admin')) {
+    return next(new ApiError('Project not found', 404));
+  }
   
   // Increment view count
-  // project.metrics.views += 1;
-  // await project.save();
+  project.metrics.views += 1;
+  await project.save();
   
   res.status(200).json({
     success: true,
-    message: 'Get single project endpoint - TODO: Implement logic',
+    message: 'Project retrieved successfully',
     data: {
-      // project: project
+      project
     }
   });
 });
@@ -81,17 +100,16 @@ export const getProject = asyncHandler(async (req, res, next) => {
  * @access  Private (Admin only)
  */
 export const createProject = asyncHandler(async (req, res, next) => {
-  // TODO: Implement create project logic
-  // Add user to req.body
+  // Add user reference if needed (when user system is fully implemented)
   // req.body.createdBy = req.user.id;
   
-  // const project = await Project.create(req.body);
+  const project = await Project.create(req.body);
   
   res.status(201).json({
     success: true,
-    message: 'Create project endpoint - TODO: Implement logic',
+    message: 'Project created successfully',
     data: {
-      // project: project
+      project
     }
   });
 });
@@ -102,23 +120,22 @@ export const createProject = asyncHandler(async (req, res, next) => {
  * @access  Private (Admin only)
  */
 export const updateProject = asyncHandler(async (req, res, next) => {
-  // TODO: Implement update project logic
-  // let project = await Project.findById(req.params.id);
+  let project = await Project.findById(req.params.id);
   
-  // if (!project) {
-  //   return next(new ApiError(`Project not found with id of ${req.params.id}`, 404));
-  // }
+  if (!project) {
+    return next(new ApiError(`Project not found with id of ${req.params.id}`, 404));
+  }
   
-  // project = await Project.findByIdAndUpdate(req.params.id, req.body, {
-  //   new: true,
-  //   runValidators: true
-  // });
+  project = await Project.findByIdAndUpdate(req.params.id, req.body, {
+    new: true,
+    runValidators: true
+  });
   
   res.status(200).json({
     success: true,
-    message: 'Update project endpoint - TODO: Implement logic',
+    message: 'Project updated successfully',
     data: {
-      // project: project
+      project
     }
   });
 });
@@ -129,18 +146,17 @@ export const updateProject = asyncHandler(async (req, res, next) => {
  * @access  Private (Admin only)
  */
 export const deleteProject = asyncHandler(async (req, res, next) => {
-  // TODO: Implement delete project logic
-  // const project = await Project.findById(req.params.id);
+  const project = await Project.findById(req.params.id);
   
-  // if (!project) {
-  //   return next(new ApiError(`Project not found with id of ${req.params.id}`, 404));
-  // }
+  if (!project) {
+    return next(new ApiError(`Project not found with id of ${req.params.id}`, 404));
+  }
   
-  // await project.deleteOne();
+  await project.deleteOne();
   
   res.status(200).json({
     success: true,
-    message: 'Delete project endpoint - TODO: Implement logic',
+    message: 'Project deleted successfully',
     data: {}
   });
 });
@@ -151,17 +167,19 @@ export const deleteProject = asyncHandler(async (req, res, next) => {
  * @access  Public
  */
 export const getFeaturedProjects = asyncHandler(async (req, res, next) => {
-  // TODO: Implement get featured projects logic
-  // const projects = await Project.find({ featured: true, status: 'published' })
-  //   .sort('-createdAt')
-  //   .limit(6)
-  //   .populate('createdBy', 'name email');
+  const projects = await Project.find({ 
+    featured: true, 
+    status: 'published' 
+  })
+    .sort('-createdAt')
+    .limit(6)
+    .select('-__v');
   
   res.status(200).json({
     success: true,
-    message: 'Get featured projects endpoint - TODO: Implement logic',
+    message: 'Featured projects retrieved successfully',
     data: {
-      // projects: projects
+      projects
     }
   });
 });
@@ -172,22 +190,25 @@ export const getFeaturedProjects = asyncHandler(async (req, res, next) => {
  * @access  Public
  */
 export const toggleProjectLike = asyncHandler(async (req, res, next) => {
-  // TODO: Implement like/unlike project logic
-  // const project = await Project.findById(req.params.id);
+  const project = await Project.findById(req.params.id);
   
-  // if (!project) {
-  //   return next(new ApiError(`Project not found with id of ${req.params.id}`, 404));
-  // }
+  if (!project) {
+    return next(new ApiError(`Project not found with id of ${req.params.id}`, 404));
+  }
+
+  if (project.status !== 'published') {
+    return next(new ApiError('Project not found', 404));
+  }
   
-  // Toggle like count (in real app, you'd track which users liked what)
-  // project.metrics.likes += 1;
-  // await project.save();
+  // Simple like increment (in a real app, you'd track which users liked what)
+  project.metrics.likes += 1;
+  await project.save();
   
   res.status(200).json({
     success: true,
-    message: 'Toggle project like endpoint - TODO: Implement logic',
+    message: 'Project liked successfully',
     data: {
-      // likes: project.metrics.likes
+      likes: project.metrics.likes
     }
   });
 });
@@ -198,22 +219,101 @@ export const toggleProjectLike = asyncHandler(async (req, res, next) => {
  * @access  Private (Admin only)
  */
 export const uploadProjectImages = asyncHandler(async (req, res, next) => {
-  // TODO: Implement image upload logic
-  // const project = await Project.findById(req.params.id);
+  const project = await Project.findById(req.params.id);
   
-  // if (!project) {
-  //   return next(new ApiError(`Project not found with id of ${req.params.id}`, 404));
-  // }
+  if (!project) {
+    return next(new ApiError(`Project not found with id of ${req.params.id}`, 404));
+  }
   
-  // Handle file upload (use multer middleware)
-  // Process and resize images
-  // Update project with image URLs
-  
+  // For now, just return success message
+  // In production, you would implement file upload using multer
   res.status(200).json({
     success: true,
-    message: 'Upload project images endpoint - TODO: Implement logic',
+    message: 'Image upload endpoint ready (multer implementation needed)',
     data: {
-      // images: uploadedImages
+      project
+    }
+  });
+});
+
+/**
+ * @desc    Get projects by category
+ * @route   GET /api/projects/category/:category
+ * @access  Public
+ */
+export const getProjectsByCategory = asyncHandler(async (req, res, next) => {
+  const { category } = req.params;
+  const { page = 1, limit = 10 } = req.query;
+  
+  const validCategories = ['web-development', 'mobile-app', 'ui-ux-design', 'branding', 'ecommerce', 'other'];
+  
+  if (!validCategories.includes(category)) {
+    return next(new ApiError('Invalid category', 400));
+  }
+
+  const query = { category, status: 'published' };
+  const skip = (parseInt(page) - 1) * parseInt(limit);
+
+  const projects = await Project.find(query)
+    .sort('-createdAt')
+    .limit(parseInt(limit))
+    .skip(skip)
+    .select('-__v');
+
+  const total = await Project.countDocuments(query);
+
+  res.status(200).json({
+    success: true,
+    message: `Projects in category '${category}' retrieved successfully`,
+    data: {
+      projects,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / parseInt(limit))
+      }
+    }
+  });
+});
+
+/**
+ * @desc    Get project statistics (Admin only)
+ * @route   GET /api/projects/stats
+ * @access  Private (Admin only)
+ */
+export const getProjectStats = asyncHandler(async (req, res, next) => {
+  const totalProjects = await Project.countDocuments();
+  const publishedProjects = await Project.countDocuments({ status: 'published' });
+  const featuredProjects = await Project.countDocuments({ featured: true });
+  
+  const categoryStats = await Project.aggregate([
+    {
+      $group: {
+        _id: '$category',
+        count: { $sum: 1 }
+      }
+    }
+  ]);
+
+  const statusStats = await Project.aggregate([
+    {
+      $group: {
+        _id: '$status',
+        count: { $sum: 1 }
+      }
+    }
+  ]);
+
+  res.status(200).json({
+    success: true,
+    message: 'Project statistics retrieved successfully',
+    data: {
+      totalProjects,
+      publishedProjects,
+      featuredProjects,
+      categoryStats,
+      statusStats
     }
   });
 });
