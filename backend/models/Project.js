@@ -3,8 +3,6 @@ import mongoose from 'mongoose';
 /**
  * Project Model Schema
  * For showcasing portfolio projects on the website
- * TODO: Add image upload handling and optimization
- * TODO: Add project categories and tags
  */
 const projectSchema = new mongoose.Schema({
   title: {
@@ -100,34 +98,27 @@ const projectSchema = new mongoose.Schema({
       unique: true,
       sparse: true
     }
-  },
-  // TODO: Add user reference when user authentication is implemented
-  // createdBy: {
-  //   type: mongoose.Schema.Types.ObjectId,
-  //   ref: 'User',
-  //   required: true
-  // }
+  }
 }, {
   timestamps: true
 });
 
-// TODO: Add indexes for better query performance
-// projectSchema.index({ category: 1, status: 1 });
-// projectSchema.index({ featured: 1 });
-// projectSchema.index({ 'seo.slug': 1 });
+// Generate slug from title before saving
+projectSchema.pre('save', function(next) {
+  if (!this.seo.slug && this.title) {
+    this.seo.slug = this.title
+      .toLowerCase()
+      .replace(/[^a-zA-Z0-9]/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
+  }
+  next();
+});
 
-// TODO: Add pre-save middleware to generate slug from title
-// projectSchema.pre('save', function(next) {
-//   if (!this.seo.slug) {
-//     this.seo.slug = this.title.toLowerCase().replace(/[^a-zA-Z0-9]/g, '-');
-//   }
-//   next();
-// });
-
-// TODO: Add virtual for project URL
-// projectSchema.virtual('url').get(function() {
-//   return `/projects/${this.seo.slug}`;
-// });
+// Add indexes for better query performance
+projectSchema.index({ category: 1, status: 1 });
+projectSchema.index({ featured: 1 });
+projectSchema.index({ 'seo.slug': 1 });
 
 const Project = mongoose.model('Project', projectSchema);
 

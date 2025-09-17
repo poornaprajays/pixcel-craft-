@@ -7,7 +7,6 @@ import {
   deleteProject,
   getFeaturedProjects,
   toggleProjectLike,
-  uploadProjectImages,
   getProjectsByCategory,
   getProjectStats
 } from '../controllers/projectController.js';
@@ -42,7 +41,6 @@ router.use(authorize('admin')); // All routes after this middleware require admi
 router.post('/', validateCreateProject, createProject);
 router.put('/:id', validateMongoId, validateUpdateProject, updateProject);
 router.delete('/:id', validateMongoId, deleteProject);
-router.post('/:id/images', validateMongoId, uploadProjectImages);
 
 // Admin statistics route
 router.get('/admin/stats', getProjectStats);

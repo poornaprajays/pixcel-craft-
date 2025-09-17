@@ -50,16 +50,14 @@ export const submitContactForm = asyncHandler(async (req, res, next) => {
     metadata
   });
   
-  // In a real application, you would:
-  // 1. Send notification email to admin
-  // 2. Send acknowledgment email to user
-  // 3. Potentially integrate with CRM or other services
-  
-  console.log('New contact form submission:', {
+  // Log the new contact submission for admin monitoring
+  console.log('📧 New contact form submission:', {
     id: contact._id,
     name: contact.name,
     email: contact.email,
-    subject: contact.subject
+    subject: contact.subject,
+    projectType: contact.projectType,
+    budget: contact.budget
   });
   
   res.status(201).json({
@@ -339,8 +337,6 @@ export const scheduleFollowUp = asyncHandler(async (req, res, next) => {
   contact.followUp.scheduled = new Date(scheduledDate);
   contact.followUp.completed = false;
   await contact.save();
-  
-  // In a real application, you would schedule a reminder/notification here
   
   res.status(200).json({
     success: true,

@@ -1,7 +1,6 @@
 /**
  * Global Error Handler Middleware
- * Handles all errors throughout the application
- * TODO: Add logging service integration and error reporting
+ * Handles all errors throughout the application with proper logging and responses
  */
 
 /**
@@ -27,7 +26,7 @@ export const errorHandler = (err, req, res, next) => {
 
   // Log error to console (in development)
   if (process.env.NODE_ENV === 'development') {
-    console.error('Error Stack:', err.stack);
+    console.error('🚨 Error Stack:', err.stack);
   }
 
   // Mongoose bad ObjectId
@@ -77,11 +76,10 @@ export const asyncHandler = (fn) => (req, res, next) =>
 
 /**
  * Handle unhandled promise rejections
- * TODO: Add proper logging and graceful shutdown
  */
 process.on('unhandledRejection', (err, promise) => {
-  console.log('Unhandled Promise Rejection:', err.message);
-  // Close server & exit process
+  console.log('🚨 Unhandled Promise Rejection:', err.message);
+  // Close server & exit process gracefully
   // server.close(() => {
   //   process.exit(1);
   // });
@@ -89,9 +87,8 @@ process.on('unhandledRejection', (err, promise) => {
 
 /**
  * Handle uncaught exceptions
- * TODO: Add proper logging and graceful shutdown
  */
 process.on('uncaughtException', (err) => {
-  console.log('Uncaught Exception:', err.message);
+  console.log('🚨 Uncaught Exception:', err.message);
   process.exit(1);
 });

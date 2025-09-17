@@ -24,7 +24,7 @@ export const getProjects = asyncHandler(async (req, res, next) => {
   if (featured !== undefined) query.featured = featured === 'true';
   if (status) query.status = status;
   
-  // For public access, only show published projects
+  // For public access, only show published projects unless user is admin
   if (!req.user || req.user.role !== 'admin') {
     query.status = 'published';
   }
@@ -76,7 +76,7 @@ export const getProject = asyncHandler(async (req, res, next) => {
     return next(new ApiError(`Project not found with id of ${req.params.id}`, 404));
   }
 
-  // For public access, only show published projects
+  // For public access, only show published projects unless user is admin
   if (project.status !== 'published' && (!req.user || req.user.role !== 'admin')) {
     return next(new ApiError('Project not found', 404));
   }
@@ -100,9 +100,6 @@ export const getProject = asyncHandler(async (req, res, next) => {
  * @access  Private (Admin only)
  */
 export const createProject = asyncHandler(async (req, res, next) => {
-  // Add user reference if needed (when user system is fully implemented)
-  // req.body.createdBy = req.user.id;
-  
   const project = await Project.create(req.body);
   
   res.status(201).json({
@@ -214,29 +211,6 @@ export const toggleProjectLike = asyncHandler(async (req, res, next) => {
 });
 
 /**
- * @desc    Upload project images
- * @route   POST /api/projects/:id/images
- * @access  Private (Admin only)
- */
-export const uploadProjectImages = asyncHandler(async (req, res, next) => {
-  const project = await Project.findById(req.params.id);
-  
-  if (!project) {
-    return next(new ApiError(`Project not found with id of ${req.params.id}`, 404));
-  }
-  
-  // For now, just return success message
-  // In production, you would implement file upload using multer
-  res.status(200).json({
-    success: true,
-    message: 'Image upload endpoint ready (multer implementation needed)',
-    data: {
-      project
-    }
-  });
-});
-
-/**
  * @desc    Get projects by category
  * @route   GET /api/projects/category/:category
  * @access  Public
@@ -279,7 +253,7 @@ export const getProjectsByCategory = asyncHandler(async (req, res, next) => {
 
 /**
  * @desc    Get project statistics (Admin only)
- * @route   GET /api/projects/stats
+ * @route   GET /api/projects/admin/stats
  * @access  Private (Admin only)
  */
 export const getProjectStats = asyncHandler(async (req, res, next) => {

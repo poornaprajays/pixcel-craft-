@@ -198,44 +198,6 @@ export const updatePassword = asyncHandler(async (req, res, next) => {
 });
 
 /**
- * @desc    Forgot password
- * @route   POST /api/users/forgotpassword
- * @access  Public
- */
-export const forgotPassword = asyncHandler(async (req, res, next) => {
-  const { email } = req.body;
-
-  const user = await User.findOne({ email });
-  
-  if (!user) {
-    return next(new ApiError('There is no user with that email', 404));
-  }
-
-  // For now, just send success response
-  // In production, you would generate a reset token and send email
-  res.status(200).json({
-    success: true,
-    message: 'Password reset instructions sent to email (feature not yet implemented)',
-    data: {}
-  });
-});
-
-/**
- * @desc    Reset password
- * @route   PUT /api/users/resetpassword/:resettoken
- * @access  Public
- */
-export const resetPassword = asyncHandler(async (req, res, next) => {
-  // For now, just send a placeholder response
-  // In production, you would verify the reset token and update password
-  res.status(200).json({
-    success: true,
-    message: 'Password reset successful (feature not yet implemented)',
-    data: {}
-  });
-});
-
-/**
  * @desc    Logout user (client-side token clearing)
  * @route   GET /api/users/logout
  * @access  Private

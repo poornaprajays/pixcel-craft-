@@ -4,8 +4,7 @@ import jwt from 'jsonwebtoken';
 
 /**
  * User Model Schema
- * TODO: Add additional fields like profile picture, social links, etc.
- * TODO: Add password reset functionality
+ * Handles user authentication and profile management
  */
 const userSchema = new mongoose.Schema({
   name: {
@@ -42,24 +41,21 @@ const userSchema = new mongoose.Schema({
   isEmailVerified: {
     type: Boolean,
     default: false
-  },
-  // TODO: Add fields for password reset tokens, email verification tokens
-  // resetPasswordToken: String,
-  // resetPasswordExpire: Date,
-  // emailVerificationToken: String,
-  // emailVerificationExpire: Date,
+  }
 }, {
   timestamps: true
 });
 
 // Encrypt password using bcrypt before saving
 userSchema.pre('save', async function(next) {
+  // Only hash the password if it has been modified (or is new)
   if (!this.isModified('password')) {
     next();
   }
 
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
+  next();
 });
 
 // Match user entered password to hashed password in database
@@ -73,16 +69,6 @@ userSchema.methods.getSignedJwtToken = function() {
     expiresIn: process.env.JWT_EXPIRE,
   });
 };
-
-// TODO: Add methods for generating password reset tokens
-// userSchema.methods.getResetPasswordToken = function() {
-//   // Generate token logic
-// };
-
-// TODO: Add methods for generating email verification tokens
-// userSchema.methods.getEmailVerificationToken = function() {
-//   // Generate token logic
-// };
 
 const User = mongoose.model('User', userSchema);
 

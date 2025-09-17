@@ -39,7 +39,7 @@ export const protect = asyncHandler(async (req, res, next) => {
     req.user = user;
     next();
   } catch (error) {
-    console.error('JWT Verification Error:', error.message);
+    console.error('🚨 JWT Verification Error:', error.message);
     
     if (error.name === 'TokenExpiredError') {
       return next(new ApiError('Token expired, please login again', 401));
@@ -101,7 +101,7 @@ export const optionalAuth = asyncHandler(async (req, res, next) => {
     }
   } catch (error) {
     // If token is invalid, just continue without user
-    console.log('Optional auth failed:', error.message);
+    console.log('⚠️ Optional auth failed:', error.message);
   }
 
   next();

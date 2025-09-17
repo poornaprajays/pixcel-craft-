@@ -5,8 +5,6 @@ import {
   getMe,
   updateProfile,
   updatePassword,
-  forgotPassword,
-  resetPassword,
   logout,
   getAllUsers,
   deleteAccount
@@ -26,11 +24,9 @@ import {
 
 const router = express.Router();
 
-// Public routes
+// Public routes - Authentication
 router.post('/register', validateRegister, registerUser);
 router.post('/login', validateLogin, loginUser);
-router.post('/forgotpassword', forgotPassword);
-router.put('/resetpassword/:resettoken', resetPassword);
 
 // Protected routes (require authentication)
 router.use(protect); // All routes after this middleware are protected

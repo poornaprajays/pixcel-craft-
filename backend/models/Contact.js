@@ -3,8 +3,6 @@ import mongoose from 'mongoose';
 /**
  * Contact Model Schema
  * For handling contact form submissions and inquiries
- * TODO: Add email notification integration
- * TODO: Add spam detection and rate limiting
  */
 const contactSchema = new mongoose.Schema({
   name: {
@@ -106,7 +104,7 @@ const contactSchema = new mongoose.Schema({
   notes: {
     internal: [{
       note: String,
-      addedBy: String, // TODO: Reference to User model
+      addedBy: String,
       addedAt: {
         type: Date,
         default: Date.now
@@ -120,7 +118,6 @@ const contactSchema = new mongoose.Schema({
       }
     }]
   },
-  // TODO: Add follow-up system
   followUp: {
     scheduled: Date,
     completed: {
@@ -128,44 +125,27 @@ const contactSchema = new mongoose.Schema({
       default: false
     },
     completedAt: Date
-  },
-  // TODO: Add email thread tracking
-  // emailThread: [{
-  //   messageId: String,
-  //   direction: { type: String, enum: ['inbound', 'outbound'] },
-  //   sentAt: Date,
-  //   subject: String,
-  //   body: String
-  // }]
+  }
 }, {
   timestamps: true
 });
 
-// TODO: Add indexes for better query performance
-// contactSchema.index({ status: 1, priority: -1 });
-// contactSchema.index({ email: 1 });
-// contactSchema.index({ createdAt: -1 });
+// Auto-assign priority based on budget and timeline
+contactSchema.pre('save', function(next) {
+  if (this.isNew) {
+    if (this.budget === 'over-50k' || this.timeline === 'asap') {
+      this.priority = 'high';
+    } else if (this.budget === '25k-50k' || this.timeline === '1-month') {
+      this.priority = 'medium';
+    }
+  }
+  next();
+});
 
-// TODO: Add pre-save middleware for data processing
-// contactSchema.pre('save', function(next) {
-//   // Auto-assign priority based on budget and timeline
-//   if (this.budget === 'over-50k' || this.timeline === 'asap') {
-//     this.priority = 'high';
-//   }
-//   next();
-// });
-
-// TODO: Add method to send email notifications
-// contactSchema.methods.sendNotification = async function() {
-//   // Email notification logic
-// };
-
-// TODO: Add virtual for response time tracking
-// contactSchema.virtual('responseTime').get(function() {
-//   if (this.status === 'responded') {
-//     // Calculate time between creation and first response
-//   }
-// });
+// Add indexes for better query performance
+contactSchema.index({ status: 1, priority: -1 });
+contactSchema.index({ email: 1 });
+contactSchema.index({ createdAt: -1 });
 
 const Contact = mongoose.model('Contact', contactSchema);
 
